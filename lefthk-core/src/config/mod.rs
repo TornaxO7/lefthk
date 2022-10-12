@@ -1,8 +1,7 @@
-pub mod command;
-mod keybind;
+use self::{keybind::Keybind, command::Command};
 
-pub use command::Command;
-pub use keybind::Keybind;
+pub mod command;
+pub mod keybind;
 
 pub trait Config {
     fn mapped_bindings(&self) -> Vec<Keybind>;

@@ -1,4 +1,4 @@
-use crate::config::Keybind;
+use crate::config::keybind::Keybind;
 use crate::errors::{self, Error, LeftError};
 use crate::xkeysym_lookup;
 use std::future::Future;

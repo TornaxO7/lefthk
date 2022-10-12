@@ -4,8 +4,9 @@ pub mod keybind;
 
 use crate::errors::{LeftError, Result};
 
+use lefthk_core::config::keybind::KeybindConverter;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fs, path::Path};
+use std::{fs, path::Path};
 use xdg::BaseDirectories;
 
 use self::{
@@ -19,11 +20,11 @@ pub struct Config {
 }
 
 impl lefthk_core::config::Config for Config {
-    fn mapped_bindings(&self) -> Vec<lefthk_core::config::Keybind> {
+    fn mapped_bindings(&self) -> Vec<lefthk_core::config::keybind::Keybind> {
         self.keybinds
             .iter()
-            .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
-                Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
+            .filter_map(|kb| match kb.to_lefthk_core_keybind() {
+                Ok(keybinds) => Some::<Vec<lefthk_core::config::keybind::Keybind>>(keybinds),
                 Err(err) => {
                     tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
                     None

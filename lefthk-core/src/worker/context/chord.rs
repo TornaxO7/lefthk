@@ -1,4 +1,4 @@
-use crate::{config::Keybind, worker::Worker};
+use crate::{config::keybind::Keybind, worker::Worker};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Chord {

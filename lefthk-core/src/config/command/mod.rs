@@ -42,3 +42,9 @@ pub fn denormalize(
     }
     Err(CommandError::UnmatchingCommand)
 }
+
+pub trait CommandConverter {
+    type Error;
+
+    fn to_lefthk_core_command(&self) -> Result<Vec<Box<dyn Command>>, Self::Error>;
+}

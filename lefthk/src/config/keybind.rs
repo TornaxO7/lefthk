@@ -1,13 +1,12 @@
-use crate::errors::{LeftError, Result};
+use crate::errors::LeftError;
 use lefthk_core::config::command as command_mod;
-use lefthk_core::config::Command as core_command;
-use lefthk_core::config::Keybind as core_keybind;
+use lefthk_core::config::command::Command as core_command;
+use lefthk_core::config::keybind::Keybind as core_keybind;
+use lefthk_core::config::keybind::KeybindConverter;
 use serde::Deserialize;
 use serde::Serialize;
 
 use super::{command::Command, key::Key};
-
-use std::convert::TryFrom;
 
 macro_rules! get_key {
     ($expr:expr $(,)?) => {
@@ -36,35 +35,37 @@ pub struct Keybind {
     pub key: Key,
 }
 
-impl TryFrom<Keybind> for Vec<core_keybind> {
+impl KeybindConverter for Keybind {
     type Error = LeftError;
 
-    fn try_from(kb: Keybind) -> Result<Self> {
-        let command_key_pairs: Vec<(Box<dyn core_command>, String)> = match kb.command {
+    fn to_lefthk_core_keybind(&self) -> Result<Vec<core_keybind>, Self::Error> {
+        let command_key_pairs: Vec<(Box<dyn core_command>, String)> = match &self.command {
             Command::Chord(children) if !children.is_empty() => {
-                let key = get_key!(kb.key);
+                let key = get_key!(&self.key);
                 let children = children
                     .iter()
-                    .filter_map(|kb| match TryFrom::try_from(kb.clone()) {
-                        Ok(keybinds) => Some::<Vec<lefthk_core::config::Keybind>>(keybinds),
-                        Err(err) => {
-                            tracing::error!("Invalid key binding: {}\n{:?}", err, kb);
-                            None
-                        }
+                    .filter_map(|kb| {
+                        kb.to_lefthk_core_keybind().map_or_else(
+                            |err| {
+                                tracing::error!("Invalid key binding: {}\n{:?}", err, self);
+                                None
+                            },
+                            |converted_kb| Some(converted_kb),
+                        )
                     })
                     .flatten()
                     .collect();
 
-                vec![(Box::new(command_mod::Chord::new(children)), key)]
+                vec![(Box::new(command_mod::Chord::new(children)), key.to_string())]
             }
             Command::Chord(_) => return Err(LeftError::ChildrenNotFound),
             Command::Execute(value) if !value.is_empty() => {
-                let keys = get_key!(kb.key);
-                vec![(Box::new(command_mod::Execute::new(value)), keys)]
+                let keys = get_key!(&self.key);
+                vec![(Box::new(command_mod::Execute::new(value)), keys.to_string())]
             }
             Command::Execute(_) => return Err(LeftError::ValueNotFound),
             Command::Executes(values) if !values.is_empty() => {
-                let keys = get_keys!(kb.key);
+                let keys = get_keys!(&self.key);
                 if keys.len() != values.len() {
                     return Err(LeftError::NumberOfKeysDiffersFromValues);
                 }
@@ -82,23 +83,24 @@ impl TryFrom<Keybind> for Vec<core_keybind> {
             }
             Command::Executes(_) => return Err(LeftError::ValuesNotFound),
             Command::ExitChord => {
-                let keys = get_key!(kb.key);
-                vec![(Box::new(command_mod::ExitChord::new()), keys)]
+                let keys = get_key!(&self.key);
+                vec![(Box::new(command_mod::ExitChord::new()), keys.to_string())]
             }
             Command::Reload => {
-                let keys = get_key!(kb.key);
-                vec![(Box::new(command_mod::Reload::new()), keys)]
+                let keys = get_key!(&self.key);
+                vec![(Box::new(command_mod::Reload::new()), keys.to_string())]
             }
             Command::Kill => {
-                let keys = get_key!(kb.key);
-                vec![(Box::new(command_mod::Kill::new()), keys)]
+                let keys = get_key!(&self.key);
+                vec![(Box::new(command_mod::Kill::new()), keys.to_string())]
             }
         };
+
         let keybinds = command_key_pairs
             .iter()
             .map(|(c, k)| core_keybind {
                 command: c.normalize(),
-                modifier: kb.modifier.clone(),
+                modifier: self.modifier.clone(),
                 key: k.to_owned(),
             })
             .collect();
